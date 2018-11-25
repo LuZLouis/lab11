@@ -49,31 +49,28 @@ def calc_rtt(time_sent):
 
 
 def catch_ping_reply(s, ID, time_sent, timeout=1):
-    # create while loop
+    TTL = 0
     while True:
-        TTL = timeout
-        while True:
-            starting_time = time.time()  # Record Starting Time
-            # to handle timeout function of socket
-            process = select.select([s], [], [], timeout)
-            # check if timeout
-            if not process[0]:
-                return calc_rtt(time_sent), None, None
+        TTL += 1
+        starting_time = time.time()  # Record Starting Time
+        # to handle timeout function of socket
+        process = select.select([s], [], [], timeout)
+        # check if timeout
+        if not process[0]:
+            return calc_rtt(time_sent), None, None
 
-            # receive packet
-            rec_packet, addr = s.recvfrom(1024)
+        # receive packet
+        rec_packet, addr = s.recvfrom(1024)
 
-            # extract icmp packet from received packet
-            icmp = parse_icmp_header(rec_packet[20:28])
-            TTL = TTL - 1
-            # check identification
+        # extract icmp packet from received packet
+        icmp = parse_icmp_header(rec_packet[20:28])
+        reply = parse_ip_header(rec_packet[:20])
+        # check identification
+        if icmp['id'] == ID:
+            return calc_rtt(time_sent), reply, icmp
+        else:
+            print(reply['TTL'])
 
-            if icmp['id'] == ID:
-                return calc_rtt(time_sent), parse_ip_header(rec_packet[:20]), icmp
-            elif TTL == 0:
-                print('{0}  <{1} ms   {2[Source Address]}'.format(timeout, calc_rtt(time_sent)*1000, parse_ip_header(rec_packet[:20])))
-                timeout +=1
-                break
 
 def single_ping_request(s, addr=None):
     # Random Packet Id
